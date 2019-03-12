@@ -13,15 +13,15 @@ class Eg002SigningViaEmailController < EgController
       # Call the worker method
       # More data validation would be a good idea here
       # Validation: Delete any non-usual characters
-      signer_name  = request.params['signerName'].gsub(/([^\w \-\@\.\,])+/, '')
-      signer_email = request.params['signerEmail'].gsub(/([^\w \-\@\.\,])+/, '')
-      cc_name      = request.params['ccName'].gsub(/([^\w \-\@\.\,])+/, '')
-      cc_email     = request.params['ccEmail'].gsub(/([^\w \-\@\.\,])+/, '')
+      # signer_name  = request.params['signerName'].gsub(/([^\w \-\@\.\,])+/, '')
+      # signer_email = request.params['signerEmail'].gsub(/([^\w \-\@\.\,])+/, '')
+      # cc_name      = request.params['ccName'].gsub(/([^\w \-\@\.\,])+/, '')
+      # cc_email     = request.params['ccEmail'].gsub(/([^\w \-\@\.\,])+/, '')
       envelope_args = {
-        signer_email: signer_email,
-        signer_name: signer_name,
-        cc_email: cc_email,
-        cc_name: cc_name,
+        signer_email: "dquimper+signer@ext.copper.com",
+        signer_name: "signer",
+        # cc_email: cc_email,
+        # cc_name: cc_name,
         status: 'sent'
       }
       args = {
@@ -71,6 +71,30 @@ class Eg002SigningViaEmailController < EgController
     results = envelope_api.create_envelope args[:account_id], envelope_definition
     envelope_id = results.envelope_id
     { 'envelope_id' => envelope_id }
+  end
+
+  def event_notification
+    config = Rails.application.config
+
+    event_notif = DocuSign_eSign::EventNotification.new
+    event_notif.url = config.webhook_url
+    event_notif.logging_enabled = true
+    event_notif.require_acknowledgment = true
+    # event_notif.use_soap_interface = true
+    # event_notif.sign_message_with_x509_cert = true
+    event_notif.include_envelope_void_reason = true
+    event_notif.include_time_zone = true
+    # event_notif.include_sender_account_as_custom_field = true
+    # event_notif.include_documents = true
+    # event_notif.include_document_fields = true
+    # event_notif.include_certificate_with_soap = true
+    # event_notif.include_certificate_of_completion = true
+    event_notif.envelope_events = ["Sent", "Delivered", "Completed", "Declined", "Voided"].
+        map { |e| DocuSign_eSign::EnvelopeEvent.new("envelopeEventStatusCode" => e) }
+    event_notif.recipient_events = ["Sent", "Delivered", "Completed", "Declined", "AuthenticationFailed", "AutoResponded"].
+        map { |e| DocuSign_eSign::RecipientEvent.new("recipientEventStatusCode" => e) }
+    puts "\e[33m" + "event_notif=#{(event_notif).inspect}" + "\e[39m"
+    event_notif
   end
 
   # @param [Object] envelope_args
@@ -127,22 +151,23 @@ class Eg002SigningViaEmailController < EgController
     envelope_definition.documents = [document1, document2, document3]
 
     # Create the signer recipient model
-    signer1 = DocuSign_eSign::Signer.new
-    signer1.email = envelope_args[:signer_email]
-    signer1.name = envelope_args[:signer_name]
-    signer1.recipient_id = '1'
-    signer1.routing_order = '1'
+    # signer1 = DocuSign_eSign::Signer.new
+    # signer1.email = envelope_args[:signer_email]
+    # signer1.name = envelope_args[:signer_name]
+    # signer1.recipient_id = '1'
+    # signer1.routing_order = '1'
+
     ## routingOrder (lower means earlier) determines the order of deliveries
     # to the recipients. Parallel routing order is supported by using the
     # same integer as the order for two or more recipients.
 
     # create a cc recipient to receive a copy of the documents
-    cc1 = DocuSign_eSign::CarbonCopy.new(
-      email: envelope_args[:cc_email],
-      name: envelope_args[:cc_name],
-      routingOrder: '2',
-      recipientId: '2'
-    )
+    # cc1 = DocuSign_eSign::CarbonCopy.new(
+    #   email: envelope_args[:cc_email],
+    #   name: envelope_args[:cc_name],
+    #   routingOrder: '2',
+    #   recipientId: '2'
+    # )
     # Create signHere fields (also known as tabs) on the documents,
     # We're using anchor (autoPlace) positioning
     #
@@ -165,21 +190,38 @@ class Eg002SigningViaEmailController < EgController
     )
     # Add the tabs model (including the sign_here tabs) to the signer
     # The Tabs object wants arrays of the different field/tab types
-    signer1_tabs = DocuSign_eSign::Tabs.new ({
-      signHereTabs: [sign_here1, sign_here2]
-    })
+    # signer1_tabs = DocuSign_eSign::Tabs.new ({
+    #   signHereTabs: [sign_here1, sign_here2]
+    # })
 
-    signer1.tabs = signer1_tabs
+    signers = []
+    2.times do |i|
+      signer = DocuSign_eSign::Signer.new
+      signer.email = "dquimper+signer#{i}@ext.copper.com"
+      signer.name = "signer#{i}"
+      signer.recipient_id = "#{i+1}"
+      signer.routing_order = "#{i+1}"
+
+      signer.tabs = DocuSign_eSign::Tabs.new ({
+          signHereTabs: [sign_here1, sign_here2]
+      })
+
+      signers << signer
+    end
+
+    # signer1.tabs = signer1_tabs
 
     # Add the recipients to the envelope object
     recipients = DocuSign_eSign::Recipients.new(
-      signers: [signer1],
-      carbonCopies: [cc1]
+      signers: signers,
+      # carbonCopies: [cc1]
     )
     # Request that the envelope be sent by setting |status| to "sent".
     # To request that the envelope be created as a draft, set to "created"
     envelope_definition.recipients = recipients
     envelope_definition.status = envelope_args[:status]
+    # envelope_definition.status = "created"
+    envelope_definition.event_notification = event_notification
     envelope_definition
   end
 

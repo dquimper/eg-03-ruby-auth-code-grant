@@ -20,14 +20,16 @@ module Eg03RubyAuthCodeGrant
     # is determined by your app's web server. For the default puma
     # server, see config/puma.rb
     #
-    # NOTE => You must add a Redirect URI of {app_url}/auth/docusign/callback 
+    # NOTE => You must add a Redirect URI of {app_url}/auth/docusign/callback
     #         to your Integration Key.
     #
     # NOTE: The terms "client_id" and "Integration key" are synonyms. They refer to the same thing.
-    config.client_id = '{CLIENT_ID}'
-    config.client_secret = '{CLIENT_SECRET}'
-    config.signer_email =  '{USER_EMAIL}'
-    config.signer_name = '{USER_FULLNAME}'
+    config.client_id = '9d147580-881b-49e8-9126-2aaa2a4778fa'
+    config.client_secret = 'ba8d8c97-53ee-47fc-81b4-f1c40801d114'
+    config.webhook_url = 'https://52a786a5.ngrok.io/callbacks/docusign/envelope/1'
+    # config.webhook_url = 'https://en228xxse2mb8.x.pipedream.net'
+    config.signer_email =  'dquimper@ext.prosperworks.com'
+    config.signer_name = 'Mr Sign Alot'
     config.authorization_server = 'https://account-d.docusign.com'
     config.allow_silent_authentication = true # a user can be silently authenticated if they have an
                                               # active login session on another tab of the same browser
@@ -36,7 +38,7 @@ module Eg03RubyAuthCodeGrant
     # Payment gateway information is optional. It is only needed for example 14.
     # See the PAYMENTS_INSTALLATION.md file for instructions
     config.gateway_account_id = '{DS_PAYMENT_GATEWAY_ID}'
-    
+
     # The remainder of this file is already configured.
     config.demo_doc_path = 'demo_documents'
     config.doc_docx = 'World_Wide_Corp_Battle_Plan_Trafalgar.docx'
